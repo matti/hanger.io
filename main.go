@@ -33,7 +33,9 @@ func main() {
 	fmt.Println("Starting HTTP server...")
 	http.HandleFunc("/pause/", pause)
 	http.HandleFunc("/continue/", cont)
-	err := http.ListenAndServe("localhost:"+*port, nil)
+	http.Handle("/", http.FileServer(http.Dir("./html")))
+
+	err := http.ListenAndServe(":"+*port, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -53,7 +55,7 @@ func pause(w http.ResponseWriter, req *http.Request) {
 		maxRampUp := <-ch
 		sleepAndRespond(w, maxRampUp.(int), "done")
 	} else {
-		hangers[hangID] = broadcast.NewBroadcaster(5)
+		hangers[hangID] = broadcast.NewBroadcaster(10000)
 		broadcaster := hangers[hangID]
 
 		pubsub := redisClient.Subscribe(hangID)
