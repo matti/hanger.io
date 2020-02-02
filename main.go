@@ -1,7 +1,5 @@
 package main
 
-// curl -d status=504 -d rampup=5
-
 import (
 	"flag"
 	"fmt"
@@ -58,14 +56,18 @@ func pause(w http.ResponseWriter, req *http.Request) {
 }
 
 func cont(w http.ResponseWriter, req *http.Request) {
-	rampUpTime := req.URL.Query()["rampup"][0]
-	if rampUpTime == "" {
-		rampUpTime = "5"
-	}
-
 	hangID := req.URL.Path[len("/continue/"):]
 	if hangID == "" {
 		fmt.Fprintln(w, "Provide an id: /continue/<number>")
+	}
+
+	var rampUpTime string
+	params := req.URL.Query()["rampup"]
+
+	if len(params) == 0 {
+		rampUpTime = "5"
+	} else {
+		rampUpTime = req.URL.Query()["rampup"][0]
 	}
 
 	err := redisClient.Publish(hangID, rampUpTime).Err()
