@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/dustin/go-broadcast"
 	"github.com/go-redis/redis"
 	"math/rand"
 	"net/http"
@@ -18,6 +19,7 @@ var (
 	redisDBIndex  = flag.Int("db", 0, "Redis DB index")
 
 	redisClient *redis.Client
+	hangers     = make(map[string]broadcast.Broadcaster)
 )
 
 func main() {
@@ -43,15 +45,27 @@ func pause(w http.ResponseWriter, req *http.Request) {
 		fmt.Fprintln(w, "Provide an id: /pause/<number>")
 	}
 
-	pubsub := redisClient.Subscribe(hangID)
-	ch := pubsub.Channel()
+	if broadcaster, exists := hangers[hangID]; exists {
+		ch := make(chan interface{})
+		broadcaster.Register(ch)
+		defer broadcaster.Unregister(ch)
 
-	for msg := range ch {
-		maxRampUp, _ := strconv.Atoi(msg.Payload)
-		rampUp := time.Duration(rand.Intn(maxRampUp))
-		time.Sleep(rampUp * time.Second)
-		fmt.Fprint(w, "done")
-		return
+		maxRampUp := <-ch
+		sleepAndRespond(w, maxRampUp.(int), "done")
+	} else {
+		hangers[hangID] = broadcast.NewBroadcaster(5)
+		broadcaster := hangers[hangID]
+
+		pubsub := redisClient.Subscribe(hangID)
+		ch := pubsub.Channel()
+
+		for msg := range ch {
+			maxRampUp, _ := strconv.Atoi(msg.Payload)
+			broadcaster.Submit(maxRampUp)
+			sleepAndRespond(w, maxRampUp, "done")
+			delete(hangers, hangID)
+			return
+		}
 	}
 }
 
@@ -74,4 +88,10 @@ func cont(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+func sleepAndRespond(w http.ResponseWriter, maxRampUp int, message string) {
+	rampUp := time.Duration(rand.Intn(maxRampUp))
+	time.Sleep(rampUp * time.Second)
+	fmt.Fprint(w, "done")
 }
