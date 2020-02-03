@@ -56,10 +56,13 @@ func pause(w http.ResponseWriter, req *http.Request) {
 	if exists {
 		ch := make(chan interface{})
 		broadcaster.Register(ch)
-		// defer broadcaster.Unregister(ch)
+		defer broadcaster.Unregister(ch)
 
-		maxRampUp := <-ch
-		sleepAndRespond(w, maxRampUp.(int), "done")
+		select {
+		case maxRampUp := <-ch:
+			sleepAndRespond(w, maxRampUp.(int), "done")
+		}
+		// maxRampUp := <-ch
 	} else {
 		mutex.Lock()
 		hangers[hangID] = broadcast.NewBroadcaster(10000)
