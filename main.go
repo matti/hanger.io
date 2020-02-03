@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"net/http"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -20,6 +21,7 @@ var (
 
 	redisClient *redis.Client
 	hangers     = make(map[string]broadcast.Broadcaster)
+	mutex       = &sync.Mutex{}
 )
 
 func main() {
@@ -47,7 +49,9 @@ func pause(w http.ResponseWriter, req *http.Request) {
 		fmt.Fprintln(w, "Provide an id: /pause/<number>")
 	}
 
+	mutex.Lock()
 	if broadcaster, exists := hangers[hangID]; exists {
+		mutex.Unlock()
 		ch := make(chan interface{})
 		broadcaster.Register(ch)
 		defer broadcaster.Unregister(ch)
@@ -57,6 +61,7 @@ func pause(w http.ResponseWriter, req *http.Request) {
 	} else {
 		hangers[hangID] = broadcast.NewBroadcaster(10000)
 		broadcaster := hangers[hangID]
+		mutex.Unlock()
 
 		pubsub := redisClient.Subscribe(hangID)
 		ch := pubsub.Channel()
@@ -65,7 +70,10 @@ func pause(w http.ResponseWriter, req *http.Request) {
 			maxRampUp, _ := strconv.Atoi(msg.Payload)
 			broadcaster.Submit(maxRampUp)
 			sleepAndRespond(w, maxRampUp, "done")
+
+			mutex.Lock()
 			delete(hangers, hangID)
+			mutex.Unlock()
 			return
 		}
 	}
