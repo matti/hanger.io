@@ -50,19 +50,22 @@ func pause(w http.ResponseWriter, req *http.Request) {
 	}
 
 	mutex.Lock()
-	if broadcaster, exists := hangers[hangID]; exists {
-		mutex.Unlock()
+	broadcaster, exists := hangers[hangID]
+	mutex.Unlock()
+
+	if exists {
 		ch := make(chan interface{})
 		broadcaster.Register(ch)
-		defer broadcaster.Unregister(ch)
+		// defer broadcaster.Unregister(ch)
 
 		maxRampUp := <-ch
 		sleepAndRespond(w, maxRampUp.(int), "done")
 	} else {
+		mutex.Lock()
 		hangers[hangID] = broadcast.NewBroadcaster(10000)
-		broadcaster := hangers[hangID]
 		mutex.Unlock()
 
+		broadcaster := hangers[hangID]
 		pubsub := redisClient.Subscribe(hangID)
 		ch := pubsub.Channel()
 
@@ -101,7 +104,13 @@ func cont(w http.ResponseWriter, req *http.Request) {
 }
 
 func sleepAndRespond(w http.ResponseWriter, maxRampUp int, message string) {
-	rampUp := time.Duration(rand.Intn(maxRampUp))
+	var rampUp time.Duration
+	if maxRampUp == 0 {
+		rampUp = time.Duration(0)
+	} else {
+		rampUp = time.Duration(rand.Intn(maxRampUp))
+	}
+
 	time.Sleep(rampUp * time.Second)
 	fmt.Fprint(w, "done")
 }
