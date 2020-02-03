@@ -12,8 +12,14 @@ _err() {
   exit 1
 }
 
-while true; do
+while ! nc -w 1 -z server 8080; do
+  echo "waiting for server:8080"
+  sleep 1 &
+  wait $!
+done
+echo "server:8080 ready"
 
+while true; do
   case ${1:-} in
     pauser)
       echo "pause"
