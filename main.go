@@ -46,7 +46,7 @@ func main() {
 func pause(w http.ResponseWriter, req *http.Request) {
 	hangID := req.URL.Path[len("/pause/"):]
 	if hangID == "" {
-		fmt.Fprintln(w, "Provide an id: /pause/<number>")
+		fmt.Fprintln(w, "Provide an id: /pause/<id>")
 	}
 
 	mutex.Lock()
@@ -82,7 +82,7 @@ func pause(w http.ResponseWriter, req *http.Request) {
 func cont(w http.ResponseWriter, req *http.Request) {
 	hangID := req.URL.Path[len("/continue/"):]
 	if hangID == "" {
-		fmt.Fprintln(w, "Provide an id: /continue/<number>")
+		fmt.Fprintln(w, "Provide an id: /continue/<id>")
 	}
 
 	var rampUpTime string
