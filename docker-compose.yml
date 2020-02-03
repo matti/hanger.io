@@ -1,0 +1,19 @@
+version: "3.6"
+
+services:
+  server:
+    build: .
+    image: mattipaksula/hangerio
+    command:
+      - -h
+      - redis
+    ports:
+      - 8080:8080
+  pauser:
+    build: client
+    command: pauser
+  continuer:
+    build: client
+    command: continuer
+  redis:
+    image: redis:alpine
